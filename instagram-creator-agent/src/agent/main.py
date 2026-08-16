@@ -170,6 +170,34 @@ def cmd_whoami(_args) -> None:
     print("Credentials OK.")
 
 
+def cmd_discover(args) -> None:
+    """Given any access token, identify the login flavor, host, and IG user ID."""
+    try:
+        result = instagram_publisher.discover(args.token)
+    except instagram_publisher.InstagramError as e:
+        sys.exit(f"Discovery failed: {e}\n"
+                 "The token may be expired — generate a fresh one and retry.")
+    if result["flavor"] == "instagram_login":
+        print("Instagram Login flavor detected. Put these in .env:")
+        print(f"  IG_GRAPH_HOST={result['host']}")
+        print(f"  IG_USER_ID={result['ig_user_id']}")
+        print(f"  IG_ACCESS_TOKEN=<this token — run exchange-token first if it's short-lived>")
+        print(f"Account: @{result.get('username')}")
+        return
+    print("Facebook Login flavor detected.")
+    if not result["linked_accounts"]:
+        sys.exit("No Pages with a linked Instagram professional account were found.\n"
+                 "Link your Instagram account to a Facebook Page, or check the token's permissions "
+                 "(pages_show_list + instagram_basic).")
+    for acct in result["linked_accounts"]:
+        print(f"\nPage: {acct['page_name']} ({acct['page_id']})")
+        print(f"  linked IG account: @{acct.get('username')} — IG_USER_ID={acct['ig_user_id']}")
+        print("  use the PAGE access token below as IG_ACCESS_TOKEN "
+              "(exchange it for a long-lived one):")
+        print(f"  {acct['page_access_token']}")
+    print(f"\nAlso set IG_GRAPH_HOST={result['host']} in .env")
+
+
 def cmd_exchange_token(args) -> None:
     """Swap a short-lived IG token (1h) for a long-lived one (60 days)."""
     import os
@@ -204,6 +232,9 @@ def main() -> None:
     sub.add_parser("report").set_defaults(fn=cmd_report)
     sub.add_parser("whoami").set_defaults(fn=cmd_whoami)
     sub.add_parser("engage").set_defaults(fn=cmd_engage)
+    p_disc = sub.add_parser("discover")
+    p_disc.add_argument("token")
+    p_disc.set_defaults(fn=cmd_discover)
     p_tok = sub.add_parser("exchange-token")
     p_tok.add_argument("short_lived_token")
     p_tok.set_defaults(fn=cmd_exchange_token)

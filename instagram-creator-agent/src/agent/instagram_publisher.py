@@ -27,6 +27,52 @@ def _check(resp: requests.Response) -> dict:
     return data
 
 
+def discover(token: str) -> dict:
+    """Work out which login flavor a token belongs to and find the IG user ID.
+
+    Tries the Instagram-Login flavor first (GET graph.instagram.com/me), then
+    the Facebook-Login flavor (GET /me/accounts with each Page's linked
+    instagram_business_account). Returns a dict describing what was found.
+    """
+    # Instagram Login flavor: the token IS the IG user's token
+    try:
+        me = _check(requests.get(
+            "https://graph.instagram.com/v21.0/me",
+            params={"fields": "user_id,username", "access_token": token},
+            timeout=30,
+        ))
+        return {
+            "flavor": "instagram_login",
+            "host": "graph.instagram.com",
+            "ig_user_id": me.get("user_id") or me.get("id"),
+            "username": me.get("username"),
+        }
+    except InstagramError:
+        pass
+
+    # Facebook Login flavor: user token -> pages -> linked IG account
+    pages = _check(requests.get(
+        "https://graph.facebook.com/v21.0/me/accounts",
+        params={
+            "fields": "name,id,access_token,instagram_business_account{id,username}",
+            "access_token": token,
+        },
+        timeout=30,
+    ))
+    found = []
+    for page in pages.get("data", []):
+        ig = page.get("instagram_business_account")
+        if ig:
+            found.append({
+                "page_name": page["name"],
+                "page_id": page["id"],
+                "page_access_token": page.get("access_token"),
+                "ig_user_id": ig["id"],
+                "username": ig.get("username"),
+            })
+    return {"flavor": "facebook_login", "host": "graph.facebook.com", "linked_accounts": found}
+
+
 def exchange_token(short_lived_token: str, app_secret: str) -> dict:
     """Exchange a short-lived IG user token (1h) for a long-lived one (60 days).
 
