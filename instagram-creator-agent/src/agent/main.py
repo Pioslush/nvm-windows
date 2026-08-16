@@ -34,9 +34,18 @@ def cmd_generate(_args) -> None:
         draft = content_generator.draft_post(planned)
         item = approval_queue.add(planned, draft, auto_approve=auto)
         try:
-            item.image_url = image_generator.generate(draft.image_brief)
+            if "carousel" in planned.format.lower():
+                slides = int(settings.cfg.get("images", {}).get("carousel_slides", 3))
+                item.image_urls = [
+                    image_generator.generate(draft.image_brief) for _ in range(slides)
+                ]
+                item.image_url = item.image_urls[0]
+                label = f"+ {slides}-slide carousel"
+            else:
+                item.image_url = image_generator.generate(draft.image_brief)
+                label = "+ image"
             approval_queue.save(item)
-            print(f"Drafted {item.id} ({item.status}) + image: {planned.idea}")
+            print(f"Drafted {item.id} ({item.status}) {label}: {planned.idea}")
         except image_generator.ImageError as e:
             print(f"Drafted {item.id} ({item.status}), image FAILED ({e}): {planned.idea}")
         created += 1
@@ -88,7 +97,13 @@ def cmd_publish(_args) -> None:
             f"#{t.lstrip('#')}" for t in item.draft.hashtags
         )
         try:
-            media_id = instagram_publisher.publish_image(item.image_url, caption)
+            if item.video_url or item.video_path:
+                media_id = instagram_publisher.publish_reel(
+                    caption, video_url=item.video_url, video_path=item.video_path)
+            elif item.image_urls and len(item.image_urls) >= 2:
+                media_id = instagram_publisher.publish_carousel(item.image_urls, caption)
+            else:
+                media_id = instagram_publisher.publish_image(item.image_url, caption)
         except instagram_publisher.InstagramError as e:
             print(f"FAILED {item.id}: {e}")
             continue

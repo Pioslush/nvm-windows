@@ -132,6 +132,111 @@ def publish_image(image_url: str, caption: str) -> str:
     return published["id"]
 
 
+def publish_carousel(image_urls: list[str], caption: str) -> str:
+    """Publish a multi-image carousel (2-10 slides). Returns the IG media ID.
+
+    Flow: one child container per image (is_carousel_item=true), then a
+    CAROUSEL container referencing the children, then publish.
+    """
+    if not 2 <= len(image_urls) <= 10:
+        raise InstagramError(f"Carousels need 2-10 images, got {len(image_urls)}")
+    children = []
+    for url in image_urls:
+        child = _check(requests.post(
+            f"{GRAPH}/{settings.ig_user_id}/media",
+            data={
+                "image_url": url,
+                "is_carousel_item": "true",
+                "access_token": settings.ig_access_token,
+            },
+            timeout=30,
+        ))
+        children.append(child["id"])
+    container = _check(requests.post(
+        f"{GRAPH}/{settings.ig_user_id}/media",
+        data={
+            "media_type": "CAROUSEL",
+            "children": ",".join(children),
+            "caption": caption,
+            "access_token": settings.ig_access_token,
+        },
+        timeout=30,
+    ))
+    published = _check(requests.post(
+        f"{GRAPH}/{settings.ig_user_id}/media_publish",
+        data={
+            "creation_id": container["id"],
+            "access_token": settings.ig_access_token,
+        },
+        timeout=30,
+    ))
+    return published["id"]
+
+
+def _wait_for_container(container_id: str, timeout_s: int = 300) -> None:
+    """Video containers process asynchronously — poll until FINISHED."""
+    import time
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        status = _check(requests.get(
+            f"{GRAPH}/{container_id}",
+            params={"fields": "status_code", "access_token": settings.ig_access_token},
+            timeout=30,
+        )).get("status_code")
+        if status == "FINISHED":
+            return
+        if status == "ERROR":
+            raise InstagramError("Video container processing failed")
+        time.sleep(5)
+    raise InstagramError("Timed out waiting for video container to process")
+
+
+def publish_reel(caption: str, video_url: str | None = None,
+                 video_path: str | None = None) -> str:
+    """Publish a Reel from a hosted video URL or a local file. Returns media ID.
+
+    Hosted URL: container with media_type=REELS + video_url.
+    Local file: container with upload_type=resumable, then binary upload to
+    rupload.facebook.com (Authorization: OAuth <token>, offset/file_size headers).
+    """
+    if not (video_url or video_path):
+        raise InstagramError("publish_reel needs video_url or video_path")
+    params = {
+        "media_type": "REELS",
+        "caption": caption,
+        "access_token": settings.ig_access_token,
+    }
+    if video_url:
+        params["video_url"] = video_url
+    else:
+        params["upload_type"] = "resumable"
+    container = _check(requests.post(
+        f"{GRAPH}/{settings.ig_user_id}/media", data=params, timeout=30,
+    ))
+    if video_path:
+        with open(video_path, "rb") as f:
+            payload = f.read()
+        upload = requests.post(
+            f"https://rupload.facebook.com/ig-api-upload/v21.0/{container['id']}",
+            headers={
+                "Authorization": f"OAuth {settings.ig_access_token}",
+                "offset": "0",
+                "file_size": str(len(payload)),
+            },
+            data=payload,
+            timeout=600,
+        )
+        if not upload.json().get("success"):
+            raise InstagramError(f"Video upload failed: {upload.text[:200]}")
+    _wait_for_container(container["id"])
+    published = _check(requests.post(
+        f"{GRAPH}/{settings.ig_user_id}/media_publish",
+        data={"creation_id": container["id"], "access_token": settings.ig_access_token},
+        timeout=30,
+    ))
+    return published["id"]
+
+
 def publish_to_facebook_page(message: str, image_url: str | None = None) -> str:
     """Cross-post to a Facebook Page. Returns the created post/photo ID.
 

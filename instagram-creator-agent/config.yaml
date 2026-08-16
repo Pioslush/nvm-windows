@@ -24,6 +24,7 @@ images:
   provider: pollinations    # free text-to-image, no API key; "none" = supply URLs manually
   width: 1080               # 1080x1350 = Instagram portrait 4:5
   height: 1350
+  carousel_slides: 3        # images generated for carousel-format posts (2-10)
 
 # Cross-posting
 crosspost:

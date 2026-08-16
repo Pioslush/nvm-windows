@@ -34,6 +34,10 @@ def load_all(status: str | None = None) -> list[QueueItem]:
     return sorted(items, key=lambda i: i.scheduled_for)
 
 
+def _has_media(item: QueueItem) -> bool:
+    return bool(item.image_url or item.image_urls or item.video_url or item.video_path)
+
+
 def due_for_publish() -> list[QueueItem]:
     now = datetime.now().isoformat()
-    return [i for i in load_all("approved") if i.scheduled_for <= now and i.image_url]
+    return [i for i in load_all("approved") if i.scheduled_for <= now and _has_media(i)]
