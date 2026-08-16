@@ -1,0 +1,30 @@
+# Account / content strategy
+account:
+  niche: "personal finance for 20-somethings"
+  voice: "friendly, practical, no jargon, lightly funny"
+  audience: "US-based 22-30 year olds starting their first jobs"
+  pillars:                  # rotating content themes
+    - budgeting tips
+    - investing basics
+    - salary negotiation
+    - money mistakes & lessons
+  posts_per_week: 5
+  disclose_ai: true         # append AI-assistance disclosure to captions
+
+# Publishing
+approval:
+  mode: manual              # manual = human reviews every draft; auto = publish without review
+posting:
+  timezone: "America/New_York"
+  default_time: "12:30"     # local time used when the plan doesn't specify one
+
+# Monetization
+revenue:
+  monthly_goal_usd: 2500
+  streams:                  # what you actually monetize with — used in reports
+    - affiliate
+    - sponsorship
+    - digital_product
+
+# Claude
+model: claude-opus-5
