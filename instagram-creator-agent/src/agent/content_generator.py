@@ -1,6 +1,8 @@
 """Claude-powered content planning and caption writing."""
 
 import json
+import os
+import sys
 from datetime import date
 
 import anthropic
@@ -8,7 +10,20 @@ import anthropic
 from .config import settings
 from .models import ContentPlan, PlannedPost, PostDraft, WeeklyReport
 
-client = anthropic.Anthropic(api_key=settings.anthropic_api_key or None)
+_client: anthropic.Anthropic | None = None
+
+
+def client() -> anthropic.Anthropic:
+    global _client
+    if _client is None:
+        if not (settings.anthropic_api_key or os.getenv("ANTHROPIC_AUTH_TOKEN")):
+            sys.exit(
+                "Missing Anthropic credentials: set ANTHROPIC_API_KEY in .env "
+                "(get a key at https://platform.claude.com/). "
+                "Commands that don't call Claude (whoami, review, publish, log-revenue) still work."
+            )
+        _client = anthropic.Anthropic(api_key=settings.anthropic_api_key or None)
+    return _client
 
 SYSTEM = f"""You are the content strategist and copywriter for an Instagram creator account.
 
@@ -29,7 +44,7 @@ AI_DISCLOSURE = "\n\n✍️ Drafted with AI assistance, reviewed by a human."
 def make_weekly_plan(recent_performance: str | None = None) -> ContentPlan:
     """Generate a 7-day content calendar."""
     context = f"\n\nRecent performance data to learn from:\n{recent_performance}" if recent_performance else ""
-    response = client.messages.parse(
+    response = client().messages.parse(
         model=settings.model,
         max_tokens=16000,
         system=SYSTEM,
@@ -51,7 +66,7 @@ def make_weekly_plan(recent_performance: str | None = None) -> ContentPlan:
 
 def draft_post(plan: PlannedPost) -> PostDraft:
     """Write the caption, hashtags, alt text and image brief for one planned post."""
-    response = client.messages.parse(
+    response = client().messages.parse(
         model=settings.model,
         max_tokens=16000,
         system=SYSTEM,
@@ -76,7 +91,7 @@ def draft_post(plan: PlannedPost) -> PostDraft:
 
 def draft_reply(comment_text: str, commenter: str, post_caption: str) -> str | None:
     """Draft a short reply to a comment, or return None if it's better left alone."""
-    response = client.messages.create(
+    response = client().messages.create(
         model=settings.model,
         max_tokens=1024,
         system=SYSTEM,
@@ -100,7 +115,7 @@ def draft_reply(comment_text: str, commenter: str, post_caption: str) -> str | N
 
 def weekly_report(analytics: dict, revenue: dict) -> WeeklyReport:
     """Summarize performance and suggest next moves toward the revenue goal."""
-    response = client.messages.parse(
+    response = client().messages.parse(
         model=settings.model,
         max_tokens=16000,
         system=SYSTEM,
