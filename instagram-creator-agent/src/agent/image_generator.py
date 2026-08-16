@@ -36,8 +36,10 @@ def generate(brief: str) -> str:
 
     width = int(cfg.get("width", 1080))
     height = int(cfg.get("height", 1350))
+    # Long prompts 404 on the provider (the URL path gets too long once
+    # percent-encoded) — keep the raw prompt comfortably short.
     prompt = urllib.parse.quote(
-        f"{brief}. Photorealistic, high quality, no text or watermarks."[:900]
+        f"{brief[:280]}. Photorealistic, high quality, no text or watermarks."
     )
     seed = random.randint(0, 2**31)
     url = (

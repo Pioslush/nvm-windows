@@ -170,6 +170,23 @@ def cmd_whoami(_args) -> None:
     print("Credentials OK.")
 
 
+def cmd_exchange_token(args) -> None:
+    """Swap a short-lived IG token (1h) for a long-lived one (60 days)."""
+    import os
+    secret = os.getenv("IG_APP_SECRET")
+    if not secret:
+        sys.exit("Set IG_APP_SECRET in .env (your Instagram app's secret from the App Dashboard). "
+                 "Never put the secret in client-side code.")
+    try:
+        result = instagram_publisher.exchange_token(args.short_lived_token, secret)
+    except instagram_publisher.InstagramError as e:
+        sys.exit(f"Exchange failed: {e}")
+    days = result.get("expires_in", 0) // 86400
+    print("Long-lived token acquired — put this in .env as IG_ACCESS_TOKEN:\n")
+    print(result["access_token"])
+    print(f"\nExpires in ~{days} days. Re-run this command (or refresh) before it expires.")
+
+
 def cmd_log_revenue(args) -> None:
     entry = revenue.log(args.amount, args.source, args.note or "")
     rev = revenue.month_summary()
@@ -187,6 +204,9 @@ def main() -> None:
     sub.add_parser("report").set_defaults(fn=cmd_report)
     sub.add_parser("whoami").set_defaults(fn=cmd_whoami)
     sub.add_parser("engage").set_defaults(fn=cmd_engage)
+    p_tok = sub.add_parser("exchange-token")
+    p_tok.add_argument("short_lived_token")
+    p_tok.set_defaults(fn=cmd_exchange_token)
     p_rev = sub.add_parser("log-revenue")
     p_rev.add_argument("amount", type=float)
     p_rev.add_argument("--source", required=True)

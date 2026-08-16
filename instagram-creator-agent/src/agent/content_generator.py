@@ -84,6 +84,7 @@ def draft_post(plan: PlannedPost) -> PostDraft:
         output_format=PostDraft,
     )
     draft = response.parsed_output
+    draft.hashtags = [t.lstrip("#") for t in draft.hashtags]
     if settings.account.get("disclose_ai"):
         draft.caption += AI_DISCLOSURE
     return draft

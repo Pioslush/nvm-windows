@@ -27,6 +27,26 @@ def _check(resp: requests.Response) -> dict:
     return data
 
 
+def exchange_token(short_lived_token: str, app_secret: str) -> dict:
+    """Exchange a short-lived IG user token (1h) for a long-lived one (60 days).
+
+    GET https://graph.instagram.com/access_token
+        ?grant_type=ig_exchange_token&client_secret=...&access_token=...
+
+    Server-side only — never embed the app secret in client code.
+    Returns {access_token, token_type, expires_in}.
+    """
+    return _check(requests.get(
+        "https://graph.instagram.com/access_token",
+        params={
+            "grant_type": "ig_exchange_token",
+            "client_secret": app_secret,
+            "access_token": short_lived_token,
+        },
+        timeout=30,
+    ))
+
+
 def account_info() -> dict:
     """Read the IG user node — verifies credentials and returns profile basics.
 
