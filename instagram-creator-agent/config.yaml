@@ -19,6 +19,12 @@ posting:
   timezone: "America/New_York"
   default_time: "12:30"     # local time used when the plan doesn't specify one
 
+# Images (auto-generated from each post's image brief)
+images:
+  provider: pollinations    # free text-to-image, no API key; "none" = supply URLs manually
+  width: 1080               # 1080x1350 = Instagram portrait 4:5
+  height: 1350
+
 # Monetization
 revenue:
   monthly_goal_usd: 2500

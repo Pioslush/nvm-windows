@@ -5,7 +5,7 @@ import json
 import sys
 from datetime import datetime
 
-from . import analytics, approval_queue, content_generator, instagram_publisher, revenue
+from . import analytics, approval_queue, content_generator, image_generator, instagram_publisher, revenue
 from .config import PLAN_FILE, settings
 from .models import ContentPlan
 
@@ -33,10 +33,15 @@ def cmd_generate(_args) -> None:
             continue
         draft = content_generator.draft_post(planned)
         item = approval_queue.add(planned, draft, auto_approve=auto)
+        try:
+            item.image_url = image_generator.generate(draft.image_brief)
+            approval_queue.save(item)
+            print(f"Drafted {item.id} ({item.status}) + image: {planned.idea}")
+        except image_generator.ImageError as e:
+            print(f"Drafted {item.id} ({item.status}), image FAILED ({e}): {planned.idea}")
         created += 1
-        print(f"Drafted {item.id} ({item.status}): {planned.idea}")
     print(f"\n{created} draft(s) in queue. "
-          + ("Auto-approval is ON — set image URLs, then `publish`."
+          + ("Auto-approval is ON — `publish` will send them when due."
              if auto else "Run `review` to approve them."))
 
 
@@ -51,7 +56,17 @@ def cmd_review(_args) -> None:
         print(f"\n{item.draft.caption}\n")
         print("Tags: " + " ".join(f"#{t.lstrip('#')}" for t in item.draft.hashtags))
         print(f"Image brief: {item.draft.image_brief}")
-        choice = input("\n[a]pprove / [r]eject / [s]kip, optionally 'a <image_url>': ").strip()
+        print(f"Image: {item.image_url or '(none — will need one before publish)'}")
+        choice = input(
+            "\n[a]pprove / [r]eject / [g]enerate new image / [s]kip, optionally 'a <image_url>': "
+        ).strip()
+        if choice.startswith("g"):
+            try:
+                item.image_url = image_generator.generate(item.draft.image_brief)
+                print(f"New image: {item.image_url}")
+            except image_generator.ImageError as e:
+                print(f"Image generation failed: {e}")
+            choice = input("[a]pprove / [r]eject / [s]kip: ").strip()
         if choice.startswith("a"):
             item.status = "approved"
             parts = choice.split(maxsplit=1)
@@ -60,8 +75,7 @@ def cmd_review(_args) -> None:
         elif choice.startswith("r"):
             item.status = "rejected"
         approval_queue.save(item)
-    print("\nReview done. Approved posts need an image_url before publishing "
-          "(edit the queue JSON or pass it during approval).")
+    print("\nReview done. Approved posts publish automatically when due.")
 
 
 def cmd_publish(_args) -> None:

@@ -42,9 +42,11 @@ performance, and monitors revenue against a monthly goal (default: $2,500/mo).
   `instagram_basic`, and `pages_read_engagement` permissions.
   See: https://developers.facebook.com/docs/instagram-platform/content-publishing
 - An Anthropic API key: https://platform.claude.com/
-- Publicly hosted images (the Graph API requires image URLs, not uploads).
-  Any object store or CDN works; pair with an image-generation step or your
-  own photo library.
+- Images are generated automatically from each post's image brief
+  (Pollinations text-to-image, free, no key). Set `IMGBB_API_KEY` to re-host
+  them on imgbb for stable permanent URLs, or set `images.provider: none` in
+  `config.yaml` to supply your own image URLs during review. Note: check the
+  image provider's license terms for commercial use.
 
 ## Setup
 
