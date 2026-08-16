@@ -126,6 +126,52 @@ per upcoming booking; run again → `sent: 0` (idempotent). Resize any page to
 
 ---
 
+## Phase 6 — Live Supabase project (post-merge follow-up)
+
+**Built:** Created the real Supabase project (`GameDay Dock`,
+`zvquhcsltzvtpmvbperh`, free tier, `us-east-2`) and applied `0001_schema.sql`
+against it. Supabase's own security advisor flagged that `anon` (and, for the
+3 trigger-only functions, `authenticated` too) had unnecessary direct RPC
+access to the internal RLS-helper/trigger functions via
+`/rest/v1/rpc/<function>` — nobody should be able to call
+`is_venue_admin(any_uuid)` etc. directly over the API. Added
+`0002_tighten_function_grants.sql` to revoke that.
+
+**Decision/gotcha:** 0002's `revoke ... from public` was silently a no-op —
+Supabase grants `EXECUTE` to `anon`/`authenticated`/`service_role` as
+explicit named-role grants via default privileges, not through the `PUBLIC`
+pseudo-role, so revoking from `PUBLIC` touches nothing. Caught this by
+querying `pg_proc.proacl` directly rather than trusting the advisor's
+(cached) re-check. `0003_tighten_function_grants_fix.sql` revokes from the
+actual roles and is the fix that took effect; 0002 is kept for an honest
+migration history rather than silently rewritten.
+
+**Verified, not just applied:** confirmed via `pg_proc.proacl` that `anon`
+lost access everywhere and `authenticated` was preserved only on the 5
+functions RLS policies actually call. Then ran the exact query pattern the
+real app uses (`INSERT ... ` with no `RETURNING`, matching `createVenue`'s
+Supabase-JS call) end-to-end against the live project: venue insert →
+`handle_new_venue` trigger fires → `venue_members` row appears → admin can
+read both back under RLS. All passed. (A `RETURNING`-based version of the
+same test failed — surfaced a genuine Postgres RLS subtlety, that
+`INSERT ... RETURNING` also enforces the row's SELECT policy and does so
+*before* `AFTER INSERT` triggers commit their side effects, so a
+newly-created row that only becomes visible via a same-transaction trigger
+isn't visible in time. Confirmed by reading `app/actions/admin.ts` that
+`createVenue` never chains `.select()` after this particular insert, so the
+shipped app was never exposed to it — worth knowing if that code ever
+changes to add `.select()` there.)
+
+**Remaining advisor warnings (intentionally left as-is):** `authenticated`
+still has `EXECUTE` on the 5 RLS-helper functions — required, since RLS
+policies evaluate as the querying role and revoking it would break every
+admin/vendor query. `auth_leaked_password_protection` is disabled — a
+project-level Auth dashboard setting, irrelevant here since this app is
+magic-link only (no passwords exist to leak), and outside the migration
+tooling this session had available.
+
+---
+
 ## What's deliberately NOT here (per spec)
 
 - **P1:** Stripe checkout (stubbed: `stripe_customer_id` column + billing
