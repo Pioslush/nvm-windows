@@ -263,6 +263,36 @@ def publish_to_facebook_page(message: str, image_url: str | None = None) -> str:
     return data.get("post_id") or data["id"]
 
 
+def publish_to_threads(text: str, image_url: str | None = None) -> str:
+    """Cross-post to Threads (graph.threads.net). Returns the Threads media ID.
+
+    Same two-step pattern as Instagram: create a container, then publish.
+    Requires a Threads token with threads_basic + threads_content_publish.
+    Threads caps text at 500 chars — we truncate on a word boundary.
+    """
+    user_id = os.getenv("THREADS_USER_ID", "")
+    token = os.getenv("THREADS_ACCESS_TOKEN", "")
+    if not (user_id and token):
+        raise InstagramError("Threads cross-posting needs THREADS_USER_ID and "
+                             "THREADS_ACCESS_TOKEN in .env")
+    if len(text) > 500:
+        text = text[:497].rsplit(" ", 1)[0] + "…"
+    params = {"text": text, "access_token": token}
+    if image_url:
+        params.update({"media_type": "IMAGE", "image_url": image_url})
+    else:
+        params["media_type"] = "TEXT"
+    container = _check(requests.post(
+        f"https://graph.threads.net/v1.0/{user_id}/threads", data=params, timeout=30,
+    ))
+    published = _check(requests.post(
+        f"https://graph.threads.net/v1.0/{user_id}/threads_publish",
+        data={"creation_id": container["id"], "access_token": token},
+        timeout=30,
+    ))
+    return published["id"]
+
+
 def recent_media(limit: int = 10) -> list[dict]:
     """Most recent published media (id, caption, timestamp)."""
     data = _check(requests.get(

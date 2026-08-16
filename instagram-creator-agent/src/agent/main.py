@@ -118,6 +118,13 @@ def cmd_publish(_args) -> None:
                 print(f"  cross-posted to Facebook Page -> {fb_id}")
             except instagram_publisher.InstagramError as e:
                 print(f"  Facebook cross-post FAILED (IG post unaffected): {e}")
+        if settings.cfg.get("crosspost", {}).get("threads"):
+            try:
+                th_id = instagram_publisher.publish_to_threads(
+                    item.draft.caption, item.image_url)
+                print(f"  cross-posted to Threads -> {th_id}")
+            except instagram_publisher.InstagramError as e:
+                print(f"  Threads cross-post FAILED (IG post unaffected): {e}")
 
 
 def cmd_report(_args) -> None:

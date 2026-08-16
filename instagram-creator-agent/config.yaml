@@ -29,6 +29,7 @@ images:
 # Cross-posting
 crosspost:
   facebook_page: false      # true = also post to the FB Page (needs FB_PAGE_ID/FB_PAGE_TOKEN in .env)
+  threads: false            # true = also post to Threads (needs THREADS_USER_ID/THREADS_ACCESS_TOKEN)
 
 # Monetization
 revenue:
