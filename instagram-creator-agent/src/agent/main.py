@@ -97,6 +97,12 @@ def cmd_publish(_args) -> None:
         item.published_at = datetime.now().isoformat()
         approval_queue.save(item)
         print(f"Published {item.id} -> media {media_id}")
+        if settings.cfg.get("crosspost", {}).get("facebook_page"):
+            try:
+                fb_id = instagram_publisher.publish_to_facebook_page(caption, item.image_url)
+                print(f"  cross-posted to Facebook Page -> {fb_id}")
+            except instagram_publisher.InstagramError as e:
+                print(f"  Facebook cross-post FAILED (IG post unaffected): {e}")
 
 
 def cmd_report(_args) -> None:

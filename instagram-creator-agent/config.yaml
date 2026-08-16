@@ -25,6 +25,10 @@ images:
   width: 1080               # 1080x1350 = Instagram portrait 4:5
   height: 1350
 
+# Cross-posting
+crosspost:
+  facebook_page: false      # true = also post to the FB Page (needs FB_PAGE_ID/FB_PAGE_TOKEN in .env)
+
 # Monetization
 revenue:
   monthly_goal_usd: 2500

@@ -9,6 +9,8 @@ The API host depends on which login flavor the account uses (IG_GRAPH_HOST):
   - graph.facebook.com   — Instagram API with Facebook Login (page-linked)
 """
 
+import os
+
 import requests
 
 from .config import settings
@@ -128,6 +130,32 @@ def publish_image(image_url: str, caption: str) -> str:
         timeout=30,
     ))
     return published["id"]
+
+
+def publish_to_facebook_page(message: str, image_url: str | None = None) -> str:
+    """Cross-post to a Facebook Page. Returns the created post/photo ID.
+
+    With an image: POST /{page-id}/photos (url + caption) — a real photo post.
+    Without:       POST /{page-id}/feed   (message only).
+    Pages API always lives on graph.facebook.com, regardless of IG_GRAPH_HOST.
+    """
+    page_id = os.getenv("FB_PAGE_ID", "")
+    page_token = os.getenv("FB_PAGE_TOKEN", "")
+    if not (page_id and page_token):
+        raise InstagramError("Cross-posting needs FB_PAGE_ID and FB_PAGE_TOKEN in .env")
+    if image_url:
+        data = _check(requests.post(
+            f"https://graph.facebook.com/v21.0/{page_id}/photos",
+            data={"url": image_url, "caption": message, "access_token": page_token},
+            timeout=30,
+        ))
+    else:
+        data = _check(requests.post(
+            f"https://graph.facebook.com/v21.0/{page_id}/feed",
+            data={"message": message, "access_token": page_token},
+            timeout=30,
+        ))
+    return data.get("post_id") or data["id"]
 
 
 def recent_media(limit: int = 10) -> list[dict]:
