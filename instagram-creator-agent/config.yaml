@@ -1,13 +1,14 @@
 # Account / content strategy
 account:
-  niche: "personal finance for 20-somethings"
-  voice: "friendly, practical, no jargon, lightly funny"
-  audience: "US-based 22-30 year olds starting their first jobs"
+  username: skyline_sports31   # `whoami` verifies credentials resolve to this account
+  niche: "sports highlights, analysis, and fan takes"
+  voice: "energetic, knowledgeable fan — hot takes backed by stats, never toxic"
+  audience: "sports fans 18-34 who follow game days and debate rankings"
   pillars:                  # rotating content themes
-    - budgeting tips
-    - investing basics
-    - salary negotiation
-    - money mistakes & lessons
+    - game recaps & highlights
+    - player spotlights & stats
+    - hot takes / debate starters
+    - behind-the-numbers analysis
   posts_per_week: 5
   disclose_ai: true         # append AI-assistance disclosure to captions
 

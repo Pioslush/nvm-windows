@@ -23,6 +23,9 @@ class Settings:
         self.anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "")
         self.ig_user_id = os.getenv("IG_USER_ID", "")
         self.ig_access_token = os.getenv("IG_ACCESS_TOKEN", "")
+        # graph.instagram.com = Instagram API with Instagram Login (default);
+        # graph.facebook.com = Instagram API with Facebook Login (page-linked accounts)
+        self.ig_graph_host = os.getenv("IG_GRAPH_HOST", "graph.instagram.com")
 
         self.model: str = self.cfg.get("model", "claude-opus-5")
         self.account: dict = self.cfg["account"]

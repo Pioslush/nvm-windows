@@ -106,6 +106,23 @@ def cmd_report(_args) -> None:
     print(f"\nNext week's focus: {report.next_week_focus}")
 
 
+def cmd_whoami(_args) -> None:
+    """Verify IG credentials resolve to the expected account."""
+    try:
+        info = instagram_publisher.account_info()
+    except instagram_publisher.InstagramError as e:
+        sys.exit(f"Credential check FAILED: {e}\n"
+                 "Check IG_USER_ID / IG_ACCESS_TOKEN in .env (token must be long-lived "
+                 "with instagram_basic + instagram_content_publish permissions).")
+    expected = settings.account.get("username")
+    print(f"Connected as @{info.get('username')} ({info.get('name', '')})")
+    print(f"  followers: {info.get('followers_count')}  posts: {info.get('media_count')}")
+    if expected and info.get("username") != expected:
+        sys.exit(f"WARNING: token resolves to @{info.get('username')} but config.yaml "
+                 f"expects @{expected} — you may be using the wrong account's credentials.")
+    print("Credentials OK.")
+
+
 def cmd_log_revenue(args) -> None:
     entry = revenue.log(args.amount, args.source, args.note or "")
     rev = revenue.month_summary()
@@ -121,6 +138,7 @@ def main() -> None:
     sub.add_parser("review").set_defaults(fn=cmd_review)
     sub.add_parser("publish").set_defaults(fn=cmd_publish)
     sub.add_parser("report").set_defaults(fn=cmd_report)
+    sub.add_parser("whoami").set_defaults(fn=cmd_whoami)
     p_rev = sub.add_parser("log-revenue")
     p_rev.add_argument("amount", type=float)
     p_rev.add_argument("--source", required=True)

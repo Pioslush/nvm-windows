@@ -3,13 +3,17 @@
 Content publishing is a two-step flow: create a media container from a public
 image URL, then publish it. Docs:
 https://developers.facebook.com/docs/instagram-platform/content-publishing
+
+The API host depends on which login flavor the account uses (IG_GRAPH_HOST):
+  - graph.instagram.com  — Instagram API with Instagram Login (default)
+  - graph.facebook.com   — Instagram API with Facebook Login (page-linked)
 """
 
 import requests
 
 from .config import settings
 
-GRAPH = "https://graph.facebook.com/v21.0"
+GRAPH = f"https://{settings.ig_graph_host}/v21.0"
 
 
 class InstagramError(RuntimeError):
@@ -21,6 +25,21 @@ def _check(resp: requests.Response) -> dict:
     if "error" in data:
         raise InstagramError(data["error"].get("message", str(data["error"])))
     return data
+
+
+def account_info() -> dict:
+    """Read the IG user node — verifies credentials and returns profile basics.
+
+    GET /{ig-user-id}?fields=...&access_token=...
+    """
+    return _check(requests.get(
+        f"{GRAPH}/{settings.ig_user_id}",
+        params={
+            "fields": "id,username,name,biography,followers_count,follows_count,media_count,profile_picture_url",
+            "access_token": settings.ig_access_token,
+        },
+        timeout=30,
+    ))
 
 
 def publish_image(image_url: str, caption: str) -> str:
