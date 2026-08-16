@@ -64,6 +64,46 @@ def publish_image(image_url: str, caption: str) -> str:
     return published["id"]
 
 
+def recent_media(limit: int = 10) -> list[dict]:
+    """Most recent published media (id, caption, timestamp)."""
+    data = _check(requests.get(
+        f"{GRAPH}/{settings.ig_user_id}/media",
+        params={
+            "fields": "id,caption,timestamp,permalink",
+            "limit": limit,
+            "access_token": settings.ig_access_token,
+        },
+        timeout=30,
+    ))
+    return data.get("data", [])
+
+
+def list_comments(media_id: str) -> list[dict]:
+    """Top-level comments on a post (id, text, username, timestamp)."""
+    data = _check(requests.get(
+        f"{GRAPH}/{media_id}/comments",
+        params={
+            "fields": "id,text,username,timestamp",
+            "access_token": settings.ig_access_token,
+        },
+        timeout=30,
+    ))
+    return data.get("data", [])
+
+
+def reply_to_comment(comment_id: str, message: str) -> str:
+    """Post a reply under a comment. Returns the reply's ID."""
+    data = _check(requests.post(
+        f"{GRAPH}/{comment_id}/replies",
+        data={
+            "message": message,
+            "access_token": settings.ig_access_token,
+        },
+        timeout=30,
+    ))
+    return data["id"]
+
+
 def media_insights(media_id: str) -> dict:
     """Reach/likes/saves/comments/shares for one post."""
     data = _check(requests.get(

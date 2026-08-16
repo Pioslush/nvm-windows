@@ -106,6 +106,39 @@ def cmd_report(_args) -> None:
     print(f"\nNext week's focus: {report.next_week_focus}")
 
 
+def cmd_engage(_args) -> None:
+    """Fetch comments on recent posts, draft replies with Claude, approve, send."""
+    replied_file = analytics.ANALYTICS_FILE.parent / "replied_comments.json"
+    replied: set[str] = set(json.loads(replied_file.read_text())) if replied_file.exists() else set()
+    auto = settings.approval_mode == "auto"
+    my_username = settings.account.get("username", "")
+    sent = 0
+    for media in instagram_publisher.recent_media(limit=10):
+        caption = media.get("caption", "")
+        for comment in instagram_publisher.list_comments(media["id"]):
+            if comment["id"] in replied or comment.get("username") == my_username:
+                continue
+            draft = content_generator.draft_reply(
+                comment.get("text", ""), comment.get("username", ""), caption
+            )
+            if draft is None:
+                replied.add(comment["id"])   # marked handled: spam / no reply needed
+                continue
+            print(f"\n@{comment.get('username')}: {comment.get('text')}")
+            print(f"  draft reply: {draft}")
+            if not auto:
+                choice = input("  [s]end / [e]dit / [k]skip: ").strip()
+                if choice.startswith("e"):
+                    draft = input("  your reply: ").strip()
+                elif not choice.startswith("s"):
+                    continue
+            instagram_publisher.reply_to_comment(comment["id"], draft)
+            replied.add(comment["id"])
+            sent += 1
+    replied_file.write_text(json.dumps(sorted(replied)))
+    print(f"\nSent {sent} repl{'y' if sent == 1 else 'ies'}.")
+
+
 def cmd_whoami(_args) -> None:
     """Verify IG credentials resolve to the expected account."""
     try:
@@ -139,6 +172,7 @@ def main() -> None:
     sub.add_parser("publish").set_defaults(fn=cmd_publish)
     sub.add_parser("report").set_defaults(fn=cmd_report)
     sub.add_parser("whoami").set_defaults(fn=cmd_whoami)
+    sub.add_parser("engage").set_defaults(fn=cmd_engage)
     p_rev = sub.add_parser("log-revenue")
     p_rev.add_argument("amount", type=float)
     p_rev.add_argument("--source", required=True)

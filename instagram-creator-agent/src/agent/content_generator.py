@@ -74,6 +74,30 @@ def draft_post(plan: PlannedPost) -> PostDraft:
     return draft
 
 
+def draft_reply(comment_text: str, commenter: str, post_caption: str) -> str | None:
+    """Draft a short reply to a comment, or return None if it's better left alone."""
+    response = client.messages.create(
+        model=settings.model,
+        max_tokens=1024,
+        system=SYSTEM,
+        messages=[{
+            "role": "user",
+            "content": (
+                "A follower commented on one of our posts. Draft a reply in our voice: "
+                "1-2 sentences, warm, specific to what they said, no generic 'thanks for sharing!'. "
+                "If the comment is spam, a bot, harassment, or needs no reply, respond with exactly "
+                "SKIP and nothing else.\n\n"
+                f"Post caption:\n{post_caption}\n\n"
+                f"@{commenter} commented: {comment_text}"
+            ),
+        }],
+    )
+    text = next((b.text for b in response.content if b.type == "text"), "").strip()
+    if not text or text == "SKIP":
+        return None
+    return text
+
+
 def weekly_report(analytics: dict, revenue: dict) -> WeeklyReport:
     """Summarize performance and suggest next moves toward the revenue goal."""
     response = client.messages.parse(

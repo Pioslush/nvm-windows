@@ -59,11 +59,13 @@ cp .env.example .env      # fill in your keys
 ## Usage
 
 ```bash
+python -m src.agent.main whoami        # verify IG credentials resolve to your account
 python -m src.agent.main plan          # generate this week's content calendar
 python -m src.agent.main generate      # draft captions for planned posts -> approval queue
 python -m src.agent.main review        # interactively approve/reject drafts
 python -m src.agent.main publish       # publish approved posts that are due
 python -m src.agent.main report        # analytics + revenue vs. goal, with Claude's recommendations
+python -m src.agent.main engage        # draft + send replies to comments on recent posts
 python -m src.agent.main log-revenue 150 --source affiliate --note "Amazon storefront"
 ```
 
