@@ -180,8 +180,11 @@ def cmd_whoami(_args) -> None:
         info = instagram_publisher.account_info()
     except instagram_publisher.InstagramError as e:
         sys.exit(f"Credential check FAILED: {e}\n"
-                 "Check IG_USER_ID / IG_ACCESS_TOKEN in .env (token must be long-lived "
-                 "with instagram_basic + instagram_content_publish permissions).")
+                 "Check IG_USER_ID / IG_ACCESS_TOKEN in .env and that IG_GRAPH_HOST matches the "
+                 "token's login flavor (run `discover <token>` to detect it).\n"
+                 "Required scopes — Instagram Login (graph.instagram.com): "
+                 "instagram_business_basic + instagram_business_content_publish; "
+                 "Facebook Login (graph.facebook.com): instagram_basic + instagram_content_publish.")
     expected = settings.account.get("username")
     print(f"Connected as @{info.get('username')} ({info.get('name', '')})")
     print(f"  followers: {info.get('followers_count')}  posts: {info.get('media_count')}")
