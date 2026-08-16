@@ -35,7 +35,10 @@ class QueueItem(BaseModel):
     scheduled_for: str      # ISO datetime, local tz
     plan: PlannedPost
     draft: PostDraft
-    image_url: Optional[str] = None   # must be set before publishing
+    image_url: Optional[str] = None          # single-image post
+    image_urls: Optional[List[str]] = None   # 2-10 images -> published as a carousel
+    video_url: Optional[str] = None          # hosted video -> published as a Reel
+    video_path: Optional[str] = None         # local video file -> resumable-uploaded Reel
     ig_media_id: Optional[str] = None
     published_at: Optional[str] = None
 
