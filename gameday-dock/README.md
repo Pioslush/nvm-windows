@@ -19,13 +19,34 @@ RLS + magic-link auth), and Resend for email. Deploys to Vercel.
 
 ### 1. Create a Supabase project
 
+A project named **GameDay Dock** (`zvquhcsltzvtpmvbperh`, region `us-east-2`)
+already exists in the Pioslush org with all three migrations applied — skip
+straight to step 2 and use its connection details below if that's the one
+you're using. To set up a different project instead:
+
 1. Go to [supabase.com](https://supabase.com) → New project (free tier is fine).
-2. In the dashboard, open **SQL Editor**, paste the contents of
-   [`supabase/migrations/0001_schema.sql`](supabase/migrations/0001_schema.sql),
-   and run it. That creates every table, trigger, and RLS policy.
+2. In the dashboard, open **SQL Editor** and run the migrations **in order**:
+   [`0001_schema.sql`](supabase/migrations/0001_schema.sql) (every table,
+   trigger, and RLS policy), then
+   [`0002_tighten_function_grants.sql`](supabase/migrations/0002_tighten_function_grants.sql)
+   and
+   [`0003_tighten_function_grants_fix.sql`](supabase/migrations/0003_tighten_function_grants_fix.sql)
+   (revoke direct RPC access to internal RLS-helper/trigger functions from
+   `anon` — 0002 targets the `PUBLIC` pseudo-role, which Supabase's default
+   privileges don't route through, so 0003 is the fix that actually takes
+   effect; both are kept for an accurate migration history).
 3. **Authentication → URL Configuration**: set *Site URL* to
    `http://localhost:3000` and add `http://localhost:3000/auth/callback` to
    *Redirect URLs*. (Add your production URL here too when you deploy.)
+
+**Connection details for the existing GameDay Dock project:**
+```
+NEXT_PUBLIC_SUPABASE_URL=https://zvquhcsltzvtpmvbperh.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp2cXVoY3NsdHp2dHBtdmJwZXJoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY4MzM0MTUsImV4cCI6MjEwMjQwOTQxNX0.fdpBb6O8AbCN0i3VBZdMo2a6sxe9Mx6RNrBOrKnyFwo
+```
+The **service role key** is secret and not written here — grab it yourself
+from the Supabase dashboard → Project Settings → API → `service_role` secret,
+and put it only in `.env.local` (never commit it).
 
 ### 2. Configure the app
 
