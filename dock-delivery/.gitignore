@@ -1,0 +1,17 @@
+# Re-include paths the repo-root .gitignore (from nvm-windows) excludes.
+!tests/
+!.env.example
+
+node_modules/
+.next/
+out/
+build/
+.DS_Store
+*.pem
+npm-debug.log*
+.env
+.env.local
+.env.*.local
+.vercel
+*.tsbuildinfo
+next-env.d.ts
