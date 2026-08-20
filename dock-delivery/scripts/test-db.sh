@@ -9,12 +9,6 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-# initdb refuses to run as root; hand the whole script to the postgres user.
-if [ "$(id -u)" = "0" ] && id postgres >/dev/null 2>&1 && [ -z "${TEST_DB_REEXEC:-}" ]; then
-  chmod o+rx . scripts tests supabase supabase/migrations 2>/dev/null || true
-  exec su postgres -s /bin/bash -c "TEST_DB_REEXEC=1 TMPDIR=/tmp bash '$PWD/scripts/test-db.sh' $*"
-fi
-
 PGBIN="$(ls -d /usr/lib/postgresql/*/bin 2>/dev/null | sort -V | tail -1 || true)"
 if [ -z "$PGBIN" ]; then PGBIN="$(dirname "$(command -v initdb)")"; fi
 
@@ -22,14 +16,25 @@ TMPDIR="${TMPDIR:-/tmp}"
 CLUSTER="$(mktemp -d "$TMPDIR/dockdelivery-pg.XXXXXX")"
 PORT="${TEST_PG_PORT:-54329}"
 
+# initdb and pg_ctl refuse to run as root. Only those two need dropping
+# privileges — psql connects over TCP and vitest must stay as the invoking
+# user, which owns node_modules and the project directory Vite writes its
+# transient config into.
+if [ "$(id -u)" = "0" ] && id postgres >/dev/null 2>&1; then
+  chown postgres:postgres "$CLUSTER"
+  as_postgres() { su postgres -s /bin/bash -c "$1"; }
+else
+  as_postgres() { bash -c "$1"; }
+fi
+
 cleanup() {
-  "$PGBIN/pg_ctl" -D "$CLUSTER" stop -m immediate >/dev/null 2>&1 || true
+  as_postgres "'$PGBIN/pg_ctl' -D '$CLUSTER' stop -m immediate" >/dev/null 2>&1 || true
   rm -rf "$CLUSTER"
 }
 trap cleanup EXIT
 
-"$PGBIN/initdb" -D "$CLUSTER" -U postgres --auth=trust >/dev/null
-"$PGBIN/pg_ctl" -D "$CLUSTER" -o "-p $PORT -k $CLUSTER -c listen_addresses=127.0.0.1" -l "$CLUSTER/log" start >/dev/null
+as_postgres "'$PGBIN/initdb' -D '$CLUSTER' -U postgres --auth=trust" >/dev/null
+as_postgres "'$PGBIN/pg_ctl' -D '$CLUSTER' -o '-p $PORT -k $CLUSTER -c listen_addresses=127.0.0.1' -l '$CLUSTER/log' start" >/dev/null
 
 export DATABASE_URL="postgresql://postgres@127.0.0.1:$PORT/dockdelivery_test"
 psql "postgresql://postgres@127.0.0.1:$PORT/postgres" -q -c "create database dockdelivery_test"

@@ -53,11 +53,20 @@ export function todayInFacility(timezone: string): string {
   return formatInTimeZone(new Date(), timezone, "yyyy-MM-dd");
 }
 
-/** yyyy-MM-dd string, `days` days after today, in a facility's timezone. */
-export function addDaysInFacility(timezone: string, days: number): string {
-  const base = fromZonedTime(`${todayInFacility(timezone)}T00:00:00`, timezone);
-  base.setUTCDate(base.getUTCDate() + days);
-  return formatInTimeZone(base, timezone, "yyyy-MM-dd");
+/**
+ * yyyy-MM-dd string, `days` calendar days after `from` (default: today in
+ * the facility's timezone).
+ *
+ * The arithmetic runs on the calendar date anchored at UTC noon, never on a
+ * zoned instant: adding UTC days to local midnight drifts across a DST
+ * transition, which duplicated one date and dropped another from the far
+ * edge of the slot horizon every autumn.
+ */
+export function addDaysInFacility(timezone: string, days: number, from?: string): string {
+  const [y, m, d] = (from ?? todayInFacility(timezone)).split("-").map(Number);
+  const anchor = new Date(Date.UTC(y, m - 1, d, 12));
+  anchor.setUTCDate(anchor.getUTCDate() + days);
+  return anchor.toISOString().slice(0, 10);
 }
 
 export function hoursUntil(iso: string | Date): number {

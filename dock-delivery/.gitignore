@@ -15,3 +15,6 @@ npm-debug.log*
 .vercel
 *.tsbuildinfo
 next-env.d.ts
+
+# Vite writes a transient config next to vitest.config.mjs while loading it.
+vitest.config.*.timestamp-*.mjs
