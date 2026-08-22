@@ -1,0 +1,13 @@
+# Netlify deploy config. The Next.js runtime is auto-detected and applied;
+# this file only pins the pieces that aren't inferable.
+#
+# Note: vercel.json's cron entries are Vercel-specific and are ignored here.
+# The equivalents live in netlify/functions/{reminders,generate-slots}.mts
+# as scheduled functions, which call the same /api/cron/* routes.
+
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[functions]
+  directory = "netlify/functions"
