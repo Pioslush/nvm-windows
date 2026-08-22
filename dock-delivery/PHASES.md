@@ -127,6 +127,44 @@ functions (which only Postgres' trigger machinery ever needs to invoke).
   (`hxcfoheddkpwaikiuonx`), confirmed via `pg_proc.proacl` that grants
   landed correctly (see gotcha above).
 
+---
+
+## Demo pre-flight against the live project
+
+The local suite runs against a Postgres shim that only approximates
+Supabase's `auth` schema and roles. Before staking a pilot demo on it, the
+whole demo path was replayed against the **live project**
+(`hxcfoheddkpwaikiuonx`) under the real `authenticated` role with real JWT
+claims — each scenario inside a transaction that was rolled back, with the
+row counts confirmed at zero before and after.
+
+Verified end-to-end:
+
+| Demo step | Result |
+|---|---|
+| Admin creates a facility | `handle_new_facility` grants membership |
+| Weekly availability saved (7 days) | Stored and readable |
+| Invited carrier's visibility | Sees the facility, dock, and all slots |
+| Uninvited carrier's visibility | Sees nothing — 0 facilities, 0 docks, 0 slots |
+| Invited carrier books an open slot | Accepted |
+| Same slot booked twice | Rejected, `23505` from the partial unique index |
+| Booking a past slot | Rejected by `check_booking_slot` |
+| Uninvited carrier books | Rejected by the RLS with-check |
+| Slot status after booking | Flipped to `booked` by `sync_slot_status` |
+| Manifest content | Shows today's confirmed delivery with driver contact; hides pending and hides tomorrow's |
+
+**One false alarm worth recording.** The manifest check initially returned
+zero rows and looked like a bug. It wasn't: the probe inserted a booking via
+raw SQL without a `status`, so it took the column default `pending` — which
+the manifest is *supposed* to exclude, since gate security should only see
+confirmed arrivals, never pending requests. The app's `bookSlot` always sets
+status explicitly from the facility's `require_approval` setting. Re-run with
+the status the app actually writes, all four manifest assertions passed. The
+lesson generalizes: a probe that bypasses the application's own write path
+can fail for reasons that have nothing to do with the application.
+
+---
+
 ## What's deliberately NOT here (per the 12-week plan)
 
 - **Phase 1 remainder**: a friendly first-tester deployment/walkthrough,
