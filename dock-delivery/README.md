@@ -114,6 +114,37 @@ how requests race.
 
 ---
 
+## Live deployment (Netlify)
+
+The app is deployed at **https://dock-delivery.netlify.app**
+(Netlify project `dock-delivery`, site id `3005884b-a7d3-42de-a0a7-f3b9a9c3ed73`).
+
+**Status: one variable short of fully working.** `SUPABASE_SERVICE_ROLE_KEY`
+is not set, so the dock manifest, invite links, and both crons return 500.
+Everything else — landing page, sign-in, and every authenticated admin and
+carrier surface — works. To finish:
+
+1. Supabase → Project Settings → API → copy the `service_role` **secret**.
+2. Netlify → Project configuration → Environment variables → add
+   `SUPABASE_SERVICE_ROLE_KEY`.
+3. Redeploy (Netlify → Deploys → Trigger deploy). **Env changes only take
+   effect on a new deploy** — Netlify bakes the environment into each build,
+   so setting a variable without redeploying appears to do nothing.
+
+Three things worth knowing about this deploy:
+
+- **`netlify.toml` must declare `@netlify/plugin-nextjs` explicitly.** Without
+  it Netlify publishes the raw `.next` directory as flat static files,
+  generates no redirect rules, and every route 404s while the deploy still
+  reports success.
+- **`vercel.json` crons don't run on Netlify.** The equivalents are scheduled
+  functions in `netlify/functions/`, which call the same `/api/cron/*` routes
+  so both hosts share one tested code path. `vercel.json` is kept so the app
+  remains deployable to Vercel too.
+- **Setting an env var with Netlify's "secret" flag can silently fail** via
+  the API — it returns success and stores nothing. Verify by reading the
+  variables back after setting them.
+
 ## Deploying to Vercel
 
 Roughly half a day, most of it waiting on DNS. Steps 1–4 can be done in any
