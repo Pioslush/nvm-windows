@@ -116,19 +116,71 @@ how requests race.
 
 ## Deploying to Vercel
 
-1. Push this repo to GitHub and import it in Vercel. Set the project's
-   **Root Directory** to `dock-delivery`.
-2. Add the env vars from `.env.example` in Vercel → Project → Settings →
-   Environment Variables. Set `NEXT_PUBLIC_APP_URL` to your production URL
-   and set a random `CRON_SECRET`.
-3. In Supabase **Authentication → URL Configuration**, add
-   `https://YOUR-URL/auth/callback` to Redirect URLs and update the Site URL.
-4. In [Resend](https://resend.com), verify your sending domain and set
-   `RESEND_API_KEY` + `EMAIL_FROM`.
-5. Deploy. `vercel.json` schedules two crons: `/api/cron/reminders` (hourly
-   — sends each booking's reminder once, ~24h before its slot) and
-   `/api/cron/generate-slots` (daily — keeps every dock's rolling ~21-day
-   slot horizon topped up from its weekly availability template).
+Roughly half a day, most of it waiting on DNS. Steps 1–4 can be done in any
+order; step 5 is the gate.
+
+**1. Import the repo.** In Vercel, import this repository and set the
+project's **Root Directory** to `dock-delivery`. Don't deploy yet — it will
+build, but every page needing the service role will 500 until step 2.
+
+**2. Set environment variables** (Vercel → Project → Settings →
+Environment Variables). All of these come from Supabase → Project Settings →
+API, except the last three:
+
+| Variable | Where it comes from | Required? |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → API → Project URL | **Yes** |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase → API → `anon` public key | **Yes** |
+| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → API → `service_role` **secret** | **Yes** |
+| `NEXT_PUBLIC_APP_URL` | Your production URL, no trailing slash | Yes in prod |
+| `CRON_SECRET` | Any random string you generate | Yes in prod |
+| `RESEND_API_KEY` | Resend → API Keys | Optional* |
+| `EMAIL_FROM` | e.g. `Dock Delivery <dock@yourdomain.com>` | Optional* |
+
+\* Without a Resend key the app still works — emails print to the server log
+instead of being delivered. Fine for a first demo, not for a pilot.
+
+> **The service role key is a secret.** It bypasses every RLS policy. It
+> belongs in Vercel's environment variables and `.env.local` only — never in
+> the repo, never in a `NEXT_PUBLIC_*` variable.
+
+**3. Point Supabase at the deployed URL.** Supabase → Authentication → URL
+Configuration → set *Site URL* to your production URL and add
+`https://YOUR-URL/auth/callback` to *Redirect URLs*. Skipping this makes
+magic-link sign-in bounce back to localhost.
+
+**4. Verify your Resend sending domain** (skip if you're demoing without
+email), then set `RESEND_API_KEY` and `EMAIL_FROM`.
+
+**5. Check the config before you ship.** Pull the production variables down
+and run the pre-flight — it verifies every variable is present *and* that
+the service-role key actually authenticates against the project:
+
+```bash
+vercel env pull .env.production.local
+npm run preflight
+```
+
+It exits non-zero and names what's wrong. A missing key and a wrong key look
+identical at runtime (an opaque 500 on the manifest page); this tells them
+apart before a prospect sees either.
+
+**6. Deploy**, then seed a demo facility so there's something to click
+through on a call:
+
+```bash
+npm run seed
+```
+
+`vercel.json` schedules two crons automatically: `/api/cron/reminders`
+(hourly — sends each booking's reminder once, ~24h before its slot) and
+`/api/cron/generate-slots` (daily — keeps every dock's rolling ~21-day slot
+horizon topped up from its weekly availability template).
+
+**7. Walk the demo path once yourself, on a phone**, before you show anyone:
+set a dock's weekly hours → confirm slots appear → open the invite link in a
+private window → book a slot → try to book it again → open the manifest
+link. That's the whole pitch, and it takes four minutes to confirm.
 
 ## How it fits together
 
