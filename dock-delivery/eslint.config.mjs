@@ -13,6 +13,12 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    // Netlify scheduled/serverless functions must default-export the handler
+    // directly — a named function assigned first isn't the documented shape.
+    files: ["netlify/functions/**"],
+    rules: { "import/no-anonymous-default-export": "off" },
+  },
 ]);
 
 export default eslintConfig;
